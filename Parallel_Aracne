@@ -1,0 +1,54 @@
+#!/bin/bash
+#$ -cwd
+#$ -S /bin/bash
+#$ -l h_vmem=1.5G
+#$ -e /dev/null -o /dev/null
+
+# patients input file
+export inputFile=$1
+# DPI TF list
+export TFList=$2
+# gene list. Must be an existing file
+export genes=$3
+# number of total matrixes to generate
+#export matrixes=${4:-1000}
+#pval =1e-7
+export pval=${5:-1e-7}
+# error = 1e-1
+export error=${6:-1e-1}
+# algo
+export algorithm=${7:-adaptive_partitioning}
+
+#TODO: implement cmdline checks
+if [ ! -f "$inputFile" ]
+then
+    echo 'file not found'
+    exit 1
+fi
+
+ID=`sed "${SGE_TASK_ID}q;d" $genes`
+gene=$(echo $ID | cut -f1 -d\ )
+run=$(echo $ID | cut -f2 -d\ )
+
+echo doing gene $gene and run $run
+
+geneFile=`mktemp`
+echo $gene > $geneFile
+
+#outDir=adjdir_${matrixes}_${gene}
+outDir=adjdir_${gene}
+mkdir -p $outDir
+
+output=${outDir}/${inputFile%%.*}_r${run}.adj
+
+aracne2 -i $inputFile \
+    -l $TFList             \
+    -s $geneFile           \
+    -p $pval               \
+    -e $error              \
+    -a $algorithm          \
+    -r $run                \
+    -o $output
+
+rm $geneFile
+
